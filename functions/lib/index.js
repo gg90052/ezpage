@@ -104,7 +104,7 @@ app.post("/deploy", async (req, res) => {
         const octokit = new rest_1.Octokit({
             auth: token,
         });
-        const repoName = `${siteName}-ezpage`;
+        const repoName = `${siteName}`;
         // 檢查repository是否已存在
         let repoExists = false;
         try {
