@@ -1,0 +1,227 @@
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
+import * as express from "express";
+import * as cors from "cors";
+import * as multer from "multer";
+import { Octokit } from "@octokit/rest";
+import axios from "axios";
+
+admin.initializeApp();
+
+const app = express();
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000", // 開發環境
+      "https://gg90052.github.io", // GitHub Pages
+      /\.github\.io$/, // 所有 github.io 子域名
+    ],
+    credentials: true,
+  })
+);
+
+// 設定multer處理檔案上傳
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});
+
+// GitHub OAuth設定 - 需要在Firebase Config中設定這些環境變數
+// const GITHUB_CLIENT_ID = "Ov23liX2Xl95CThk8evQ";
+// const GITHUB_CLIENT_SECRET = "f80563bf8c704bbdc56a1396bd658390de6b4d5f";
+const GITHUB_CLIENT_ID = functions.config().github?.client_id;
+const GITHUB_CLIENT_SECRET = functions.config().github?.client_secret;
+
+// GitHub OAuth callback處理
+app.get("/auth/callback", async (req, res) => {
+  const { code } = req.query;
+
+  try {
+    // 使用code交換access token
+    const tokenResponse = await axios.post(
+      "https://github.com/login/oauth/access_token",
+      {
+        client_id: GITHUB_CLIENT_ID,
+        client_secret: GITHUB_CLIENT_SECRET,
+        code: code,
+      },
+      {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const { access_token } = tokenResponse.data;
+
+    // 獲取用戶資訊
+    const userResponse = await axios.get("https://api.github.com/user", {
+      headers: {
+        Authorization: `token ${access_token}`,
+      },
+    });
+
+    const userData = userResponse.data;
+
+    // 返回HTML頁面，將token和用戶資料傳遞給前端
+    return res.send(`
+      <html>
+        <script>
+          window.opener.postMessage({
+            type: 'GITHUB_AUTH_SUCCESS',
+            token: '${access_token}',
+            user: ${JSON.stringify(userData)}
+          }, '*');
+          window.close();
+        </script>
+      </html>
+    `);
+  } catch (error) {
+    console.error("GitHub OAuth失敗:", error);
+    return res.status(500).send("認證失敗");
+  }
+});
+
+// 部署到GitHub Pages
+app.post("/deploy", upload.array("files"), async (req, res) => {
+  try {
+    const { repoName, repoDescription, token } = req.body;
+    const files = req.files as Express.Multer.File[];
+
+    if (!token || !repoName || !files || files.length === 0) {
+      return res.status(400).json({ error: "缺少必要參數" });
+    }
+
+    const octokit = new Octokit({
+      auth: token,
+    });
+
+    // 獲取當前用戶資訊
+    const { data: user } = await octokit.rest.users.getAuthenticated();
+
+    // 創建新的repository
+    const { data: repo } = await octokit.rest.repos.createForAuthenticatedUser({
+      name: repoName,
+      description: repoDescription || "",
+      private: false,
+      auto_init: false,
+    });
+
+    // 準備檔案內容
+    const fileContents: { [key: string]: string } = {};
+
+    for (const file of files) {
+      const content = file.buffer.toString("utf8");
+      fileContents[file.originalname] = content;
+    }
+
+    // 如果沒有index.html，使用第一個HTML檔案作為index.html
+    if (!fileContents["index.html"] && files.length > 0) {
+      const firstHtmlFile = files.find(
+        (f) =>
+          f.originalname.endsWith(".html") || f.originalname.endsWith(".htm")
+      );
+      if (firstHtmlFile) {
+        fileContents["index.html"] = firstHtmlFile.buffer.toString("utf8");
+      }
+    }
+
+    // 上傳檔案到repository
+    const uploadPromises = Object.entries(fileContents).map(
+      ([filename, content]) => {
+        return octokit.rest.repos.createOrUpdateFileContents({
+          owner: user.login,
+          repo: repoName,
+          path: filename,
+          message: `Add ${filename}`,
+          content: Buffer.from(content).toString("base64"),
+        });
+      }
+    );
+
+    await Promise.all(uploadPromises);
+
+    // 啟用GitHub Pages
+    try {
+      await octokit.rest.repos.createPagesSite({
+        owner: user.login,
+        repo: repoName,
+        source: {
+          branch: "main",
+          path: "/",
+        },
+      });
+    } catch (pagesError) {
+      console.log("GitHub Pages可能已經啟用或需要等待:", pagesError);
+    }
+
+    // 儲存部署記錄到Firestore
+    const deploymentData = {
+      id: repo.id.toString(),
+      name: repoName,
+      description: repoDescription || "",
+      repoUrl: repo.html_url,
+      pageUrl: `https://${user.login}.github.io/${repoName}`,
+      createdAt: new Date().toISOString(),
+      userId: user.login,
+    };
+
+    await admin
+      .firestore()
+      .collection("deployments")
+      .doc(repo.id.toString())
+      .set(deploymentData);
+
+    return res.json(deploymentData);
+  } catch (error) {
+    console.error("部署失敗:", error);
+    return res.status(500).json({ error: "部署失敗，請稍後再試" });
+  }
+});
+
+// 獲取用戶的部署歷史
+app.get("/deployments", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "未提供有效的認證" });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    // 獲取用戶資訊
+    const userResponse = await axios.get("https://api.github.com/user", {
+      headers: {
+        Authorization: `token ${token}`,
+      },
+    });
+
+    const userId = userResponse.data.login;
+
+    // 從Firestore獲取部署記錄
+    const deploymentsSnapshot = await admin
+      .firestore()
+      .collection("deployments")
+      .where("userId", "==", userId)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const deployments = deploymentsSnapshot.docs.map((doc) => doc.data());
+
+    return res.json(deployments);
+  } catch (error) {
+    console.error("獲取部署歷史失敗:", error);
+    return res.status(500).json({ error: "獲取部署歷史失敗" });
+  }
+});
+
+// 健康檢查
+app.get("/health", (req, res) => {
+  return res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// 導出Firebase Function
+export const api = functions.https.onRequest(app);
