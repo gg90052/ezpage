@@ -4,7 +4,21 @@
     <NavBar :user="user" @login="loginWithGitHub" @logout="logout" />
 
     <!-- 主要內容 -->
-    <main class="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+    <main class="max-w-4xl mx-auto pt-4 pb-12 px-4 sm:px-6 lg:px-8">
+      <!-- Google 廣告 -->
+      <div class="w-full bg-white border-b border-gray-200 mb-2 hidden">
+        <div class="max-w-6xl mx-auto py-2 px-4">
+          <!-- ezpage -->
+          <ins
+            class="adsbygoogle"
+            style="display: block"
+            data-ad-client="ca-pub-2578812574511816"
+            data-ad-slot="8378311131"
+            data-ad-format="auto"
+            data-full-width-responsive="true"
+          ></ins>
+        </div>
+      </div>
       <!-- 登入頁面 -->
       <LoginPage v-if="!user" @login="loginWithGitHub" />
 
@@ -84,6 +98,13 @@ onMounted(() => {
   if (token && userData) {
     user.value = JSON.parse(userData);
     loadRepositories();
+  }
+
+  // 初始化 Google AdSense
+  try {
+    (window.adsbygoogle = window.adsbygoogle || []).push({});
+  } catch (e) {
+    console.error("AdSense 初始化失敗:", e);
   }
 });
 
