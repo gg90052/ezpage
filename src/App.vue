@@ -36,6 +36,17 @@
       <!-- 通知 -->
       <Notification :message="notification" :type="notificationType" />
     </main>
+
+    <!-- 部署Loading覆蓋層 -->
+    <LoadingOverlay
+      :show="isDeploying"
+      title="正在部署中..."
+      description="正在將您的網站部署到 GitHub Pages，請稍候"
+      hint="請不要關閉此頁面..."
+      :show-progress="true"
+      :progress="70"
+      color="green"
+    />
   </div>
 </template>
 
@@ -47,6 +58,7 @@ import FileUploader from "./components/FileUploader.vue";
 import RepositoryList from "./components/RepositoryList.vue";
 import DeleteConfirmDialog from "./components/DeleteConfirmDialog.vue";
 import Notification from "./components/Notification.vue";
+import LoadingOverlay from "./components/LoadingOverlay.vue";
 import apiService from "./services/api.js";
 
 export default {
@@ -58,6 +70,7 @@ export default {
     RepositoryList,
     DeleteConfirmDialog,
     Notification,
+    LoadingOverlay,
   },
   setup() {
     // 響應式數據
