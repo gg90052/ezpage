@@ -4,7 +4,9 @@
       <div class="flex justify-between h-16">
         <div class="flex items-center">
           <h1 class="text-2xl font-bold text-gray-900">EZPage</h1>
-          <span class="ml-2 text-sm text-gray-500">輕鬆創建GitHub Pages</span>
+          <span class="ml-2 text-sm text-gray-500"
+            >輕鬆與全世界分享你的網頁</span
+          >
         </div>
         <div class="flex items-center">
           <button
@@ -45,15 +47,13 @@
   </nav>
 </template>
 
-<script>
-export default {
-  name: "NavBar",
-  props: {
-    user: {
-      type: Object,
-      default: null,
-    },
+<script setup>
+defineProps({
+  user: {
+    type: Object,
+    default: null,
   },
-  emits: ["login", "logout"],
-};
+});
+
+defineEmits(["login", "logout"]);
 </script>

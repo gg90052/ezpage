@@ -63,19 +63,16 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: "Notification",
-  props: {
-    message: {
-      type: String,
-      default: "",
-    },
-    type: {
-      type: String,
-      default: "success",
-      validator: (value) => ["success", "error", "info"].includes(value),
-    },
+<script setup>
+defineProps({
+  message: {
+    type: String,
+    default: "",
   },
-};
+  type: {
+    type: String,
+    default: "success",
+    validator: (value) => ["success", "error", "info"].includes(value),
+  },
+});
 </script>

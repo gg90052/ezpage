@@ -21,7 +21,7 @@
         <h3 class="text-lg font-semibold text-gray-900">確認刪除</h3>
       </div>
       <p class="text-gray-600 mb-6">
-        您確定要刪除 repository
+        您確定要刪除
         <span class="font-semibold text-gray-900">{{ repositoryName }}</span>
         嗎？
         <br />
@@ -45,19 +45,17 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: "DeleteConfirmDialog",
-  props: {
-    show: {
-      type: Boolean,
-      default: false,
-    },
-    repositoryName: {
-      type: String,
-      default: "",
-    },
+<script setup>
+defineProps({
+  show: {
+    type: Boolean,
+    default: false,
   },
-  emits: ["confirm", "cancel"],
-};
+  repositoryName: {
+    type: String,
+    default: "",
+  },
+});
+
+defineEmits(["confirm", "cancel"]);
 </script>

@@ -77,63 +77,52 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
 
-export default {
-  name: "AuthCallback",
-  setup() {
-    const isProcessing = ref(true);
-    const error = ref("");
+const isProcessing = ref(true);
+const error = ref("");
 
-    onMounted(async () => {
-      try {
-        // 從URL獲取授權碼
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get("code");
-        const errorParam = urlParams.get("error");
+onMounted(async () => {
+  try {
+    // 從URL獲取授權碼
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+    const errorParam = urlParams.get("error");
 
-        if (errorParam) {
-          throw new Error("用戶取消了授權或發生錯誤");
-        }
+    if (errorParam) {
+      throw new Error("用戶取消了授權或發生錯誤");
+    }
 
-        if (!code) {
-          throw new Error("未收到授權碼");
-        }
+    if (!code) {
+      throw new Error("未收到授權碼");
+    }
 
-        // 發送授權碼到後端
-        const API_BASE_URL = "https://your-project.cloudfunctions.net/api";
-        const response = await axios.get(
-          `${API_BASE_URL}/auth/callback?code=${code}`
-        );
+    // 發送授權碼到後端
+    const API_BASE_URL = "https://your-project.cloudfunctions.net/api";
+    const response = await axios.get(
+      `${API_BASE_URL}/auth/callback?code=${code}`
+    );
 
-        // 處理成功的回應
-        // 注意：實際的token會在Firebase Function中處理並返回HTML
-        // 這個組件主要用於錯誤處理和用戶體驗
+    // 處理成功的回應
+    // 注意：實際的token會在Firebase Function中處理並返回HTML
+    // 這個組件主要用於錯誤處理和用戶體驗
 
-        isProcessing.value = false;
+    isProcessing.value = false;
 
-        // 重新導向到主頁
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 2000);
-      } catch (err) {
-        console.error("認證失敗:", err);
-        error.value = err.message || "認證過程中發生錯誤";
-        isProcessing.value = false;
-      }
-    });
-
-    const redirectToHome = () => {
+    // 重新導向到主頁
+    setTimeout(() => {
       window.location.href = "/";
-    };
+    }, 2000);
+  } catch (err) {
+    console.error("認證失敗:", err);
+    error.value = err.message || "認證過程中發生錯誤";
+    isProcessing.value = false;
+  }
+});
 
-    return {
-      isProcessing,
-      error,
-      redirectToHome,
-    };
-  },
+const redirectToHome = () => {
+  window.location.href = "/";
 };
 </script>

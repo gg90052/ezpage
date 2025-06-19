@@ -19,17 +19,16 @@
         class="hidden"
       />
 
+      <!-- GitHub Octocat 上傳圖示 -->
       <svg
-        class="mx-auto h-16 w-16 text-gray-400 mb-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
+        class="mx-auto h-16 w-16 text-gray-500 mb-4"
+        fill="currentColor"
+        viewBox="0 0 20 20"
       >
         <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+          fill-rule="evenodd"
+          d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z"
+          clip-rule="evenodd"
         />
       </svg>
 
@@ -53,6 +52,7 @@
           class="flex items-center justify-between bg-gray-50 p-3 rounded-md"
         >
           <div class="flex items-center">
+            <!-- GitHub Octocat 檔案圖示 -->
             <svg
               class="h-5 w-5 text-indigo-500 mr-2"
               fill="currentColor"
@@ -60,9 +60,9 @@
             >
               <path
                 fill-rule="evenodd"
-                d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+                d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z"
                 clip-rule="evenodd"
-              ></path>
+              />
             </svg>
             <span class="text-sm text-gray-900">{{ file.name }}</span>
           </div>
@@ -180,102 +180,86 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref } from "vue";
 
-export default {
-  name: "FileUploader",
-  props: {
-    isDeploying: {
-      type: Boolean,
-      default: false,
-    },
-    isPaidUser: {
-      type: Boolean,
-      default: false,
-    },
+defineProps({
+  isDeploying: {
+    type: Boolean,
+    default: false,
   },
-  emits: ["deploy", "notification"],
-  setup(props, { emit }) {
-    const selectedFiles = ref([]);
-    const repoName = ref("ezpage");
-    const repoDescription = ref("");
-    const isDragOver = ref(false);
-
-    const handleFileSelect = (event) => {
-      const files = Array.from(event.target.files);
-      if (files.length > 0) {
-        selectedFiles.value = [files[0]]; // 只取第一個檔案
-      }
-    };
-
-    const removeFile = (index) => {
-      selectedFiles.value.splice(index, 1);
-    };
-
-    const handleDragOver = (event) => {
-      event.preventDefault();
-      isDragOver.value = true;
-    };
-
-    const handleDragLeave = (event) => {
-      event.preventDefault();
-      isDragOver.value = false;
-    };
-
-    const handleFileDrop = (event) => {
-      event.preventDefault();
-      isDragOver.value = false;
-
-      const files = Array.from(event.dataTransfer.files);
-      const htmlFiles = files.filter(
-        (file) =>
-          file.type === "text/html" ||
-          file.name.endsWith(".html") ||
-          file.name.endsWith(".htm")
-      );
-
-      if (htmlFiles.length > 0) {
-        selectedFiles.value = [htmlFiles[0]]; // 只取第一個HTML檔案
-        emit("notification", "已添加HTML檔案");
-      } else {
-        emit("notification", "請只上傳HTML檔案(.html, .htm)");
-      }
-    };
-
-    const handleDeploy = async () => {
-      if (!repoName.value || selectedFiles.value.length === 0) return;
-
-      // 讀取第一個HTML檔案的內容
-      const file = selectedFiles.value[0];
-      const htmlContent = await file.text();
-
-      const deployData = {
-        html: htmlContent,
-        siteName: repoName.value,
-        description: repoDescription.value || "",
-      };
-
-      emit("deploy", deployData);
-
-      // 清空表單
-      selectedFiles.value = [];
-      repoName.value = "ezpage";
-      repoDescription.value = "";
-    };
-
-    return {
-      selectedFiles,
-      repoName,
-      repoDescription,
-      isDragOver,
-      handleFileSelect,
-      removeFile,
-      handleDragOver,
-      handleDragLeave,
-      handleFileDrop,
-      handleDeploy,
-    };
+  isPaidUser: {
+    type: Boolean,
+    default: false,
   },
+});
+
+const emit = defineEmits(["deploy", "notification"]);
+
+const selectedFiles = ref([]);
+const repoName = ref("ezpage");
+const repoDescription = ref("");
+const isDragOver = ref(false);
+
+const handleFileSelect = (event) => {
+  const files = Array.from(event.target.files);
+  if (files.length > 0) {
+    selectedFiles.value = [files[0]]; // 只取第一個檔案
+  }
+};
+
+const removeFile = (index) => {
+  selectedFiles.value.splice(index, 1);
+};
+
+const handleDragOver = (event) => {
+  event.preventDefault();
+  isDragOver.value = true;
+};
+
+const handleDragLeave = (event) => {
+  event.preventDefault();
+  isDragOver.value = false;
+};
+
+const handleFileDrop = (event) => {
+  event.preventDefault();
+  isDragOver.value = false;
+
+  const files = Array.from(event.dataTransfer.files);
+  const htmlFiles = files.filter(
+    (file) =>
+      file.type === "text/html" ||
+      file.name.endsWith(".html") ||
+      file.name.endsWith(".htm")
+  );
+
+  if (htmlFiles.length > 0) {
+    selectedFiles.value = [htmlFiles[0]]; // 只取第一個HTML檔案
+    emit("notification", "已添加HTML檔案");
+  } else {
+    emit("notification", "請只上傳HTML檔案(.html, .htm)");
+  }
+};
+
+const handleDeploy = async () => {
+  if (!repoName.value || selectedFiles.value.length === 0) return;
+
+  // 讀取第一個HTML檔案的內容
+  const file = selectedFiles.value[0];
+  const htmlContent = await file.text();
+
+  const deployData = {
+    html: htmlContent,
+    siteName: repoName.value,
+    description: repoDescription.value || "",
+  };
+
+  emit("deploy", deployData);
+
+  // 清空表單
+  selectedFiles.value = [];
+  repoName.value = "ezpage";
+  repoDescription.value = "";
 };
 </script>

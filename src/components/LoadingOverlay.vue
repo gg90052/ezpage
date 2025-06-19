@@ -60,72 +60,72 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: "LoadingOverlay",
-  props: {
-    show: {
-      type: Boolean,
-      default: false,
-    },
-    title: {
-      type: String,
-      default: "載入中...",
-    },
-    description: {
-      type: String,
-      default: "請稍候",
-    },
-    hint: {
-      type: String,
-      default: null,
-    },
-    showProgress: {
-      type: Boolean,
-      default: false,
-    },
-    progress: {
-      type: Number,
-      default: 70,
-      validator: (value) => value >= 0 && value <= 100,
-    },
-    color: {
-      type: String,
-      default: "indigo",
-      validator: (value) =>
-        ["indigo", "blue", "green", "red", "yellow", "purple"].includes(value),
-    },
-    overlayClass: {
-      type: String,
-      default: "",
-    },
+<script setup>
+import { computed } from "vue";
+
+const props = defineProps({
+  show: {
+    type: Boolean,
+    default: false,
   },
-  computed: {
-    progressPercent() {
-      return Math.min(Math.max(this.progress, 0), 100);
-    },
-    iconColorClass() {
-      const colorMap = {
-        indigo: "text-indigo-600",
-        blue: "text-blue-600",
-        green: "text-green-600",
-        red: "text-red-600",
-        yellow: "text-yellow-600",
-        purple: "text-purple-600",
-      };
-      return colorMap[this.color] || "text-indigo-600";
-    },
-    progressBarClass() {
-      const colorMap = {
-        indigo: "bg-indigo-600",
-        blue: "bg-blue-600",
-        green: "bg-green-600",
-        red: "bg-red-600",
-        yellow: "bg-yellow-600",
-        purple: "bg-purple-600",
-      };
-      return colorMap[this.color] || "bg-indigo-600";
-    },
+  title: {
+    type: String,
+    default: "載入中...",
   },
-};
+  description: {
+    type: String,
+    default: "請稍候",
+  },
+  hint: {
+    type: String,
+    default: null,
+  },
+  showProgress: {
+    type: Boolean,
+    default: false,
+  },
+  progress: {
+    type: Number,
+    default: 70,
+    validator: (value) => value >= 0 && value <= 100,
+  },
+  color: {
+    type: String,
+    default: "indigo",
+    validator: (value) =>
+      ["indigo", "blue", "green", "red", "yellow", "purple"].includes(value),
+  },
+  overlayClass: {
+    type: String,
+    default: "",
+  },
+});
+
+const progressPercent = computed(() => {
+  return Math.min(Math.max(props.progress, 0), 100);
+});
+
+const iconColorClass = computed(() => {
+  const colorMap = {
+    indigo: "text-indigo-600",
+    blue: "text-blue-600",
+    green: "text-green-600",
+    red: "text-red-600",
+    yellow: "text-yellow-600",
+    purple: "text-purple-600",
+  };
+  return colorMap[props.color] || "text-indigo-600";
+});
+
+const progressBarClass = computed(() => {
+  const colorMap = {
+    indigo: "bg-indigo-600",
+    blue: "bg-blue-600",
+    green: "bg-green-600",
+    red: "bg-red-600",
+    yellow: "bg-yellow-600",
+    purple: "bg-purple-600",
+  };
+  return colorMap[props.color] || "bg-indigo-600";
+});
 </script>

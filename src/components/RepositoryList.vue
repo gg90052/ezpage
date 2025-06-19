@@ -1,8 +1,6 @@
 <template>
   <div v-if="repositories.length > 0" class="bg-white rounded-lg shadow-md p-8">
-    <h2 class="text-2xl font-bold text-gray-900 mb-6">
-      我的 GitHub Repositories
-    </h2>
+    <h2 class="text-2xl font-bold text-gray-900 mb-6">我的網頁</h2>
     <div class="space-y-4">
       <div
         v-for="repo in repositories"
@@ -73,7 +71,7 @@
               target="_blank"
               class="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-200"
             >
-              查看代碼
+              查看原始碼
             </a>
             <a
               v-if="repo.homepage"
@@ -110,25 +108,22 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: "RepositoryList",
-  props: {
-    repositories: {
-      type: Array,
-      default: () => [],
-    },
+<script setup>
+defineProps({
+  repositories: {
+    type: Array,
+    default: () => [],
   },
-  emits: ["delete-repo"],
-  methods: {
-    formatDate(dateString) {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("zh-TW", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    },
-  },
+});
+
+defineEmits(["delete-repo"]);
+
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("zh-TW", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 };
 </script>
