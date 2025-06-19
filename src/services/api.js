@@ -1,8 +1,9 @@
 import axios from "axios";
 
-// Firebase Functions URL (需要替換為實際URL)
-// const API_BASE_URL = "https://us-central1-ezpage-127d9.cloudfunctions.net";
-const API_BASE_URL = "http://localhost:5001/ezpage-127d9/us-central1/api";
+// Firebase Functions URL - 雲端部署版本
+const API_BASE_URL = "https://us-central1-ezpage-127d9.cloudfunctions.net/api";
+// 開發環境可以使用本地 URL：
+// const API_BASE_URL = "http://localhost:5001/ezpage-127d9/us-central1/api";
 
 class ApiService {
   constructor() {

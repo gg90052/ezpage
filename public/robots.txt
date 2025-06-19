@@ -1,0 +1,31 @@
+User-agent: *
+Allow: /
+
+# 網站地圖位置
+Sitemap: https://gg90052.github.io/ezpage/sitemap.xml
+
+# 爬取延遲
+Crawl-delay: 1
+
+# 特別允許的路徑
+Allow: /src/
+Allow: /assets/
+Allow: /components/
+
+# 禁止爬取的路徑（如果有的話）
+Disallow: /private/
+Disallow: /.env
+Disallow: /node_modules/
+
+# 針對特定搜索引擎的指令
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: / 

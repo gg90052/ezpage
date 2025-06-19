@@ -29,13 +29,9 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // GitHub OAuth設定 - 需要在Firebase Config中設定這些環境變數
-// const GITHUB_CLIENT_ID = "Ov23liX2Xl95CThk8evQ";
-// const GITHUB_CLIENT_SECRET = "f80563bf8c704bbdc56a1396bd658390de6b4d5f";
-const GITHUB_CLIENT_ID =
-  functions.config().github?.client_id || "Ov23liX2Xl95CThk8evQ";
-const GITHUB_CLIENT_SECRET =
-  functions.config().github?.client_secret ||
-  "f80563bf8c704bbdc56a1396bd658390de6b4d5f";
+
+const GITHUB_CLIENT_ID = functions.config().github?.client_id;
+const GITHUB_CLIENT_SECRET = functions.config().github?.client_secret;
 
 // GitHub OAuth callback處理
 app.get("/auth/callback", async (req, res) => {

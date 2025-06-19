@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy:github": "npm run build && gh-pages -d dist",
+    "deploy": "npm run build && gh-pages -d dist -r git@github.com:gg90052/ezpage.git",
+    "deploy:github": "npm run build && gh-pages -d dist -r git@github.com:gg90052/ezpage.git",
     "firebase:deploy": "firebase deploy --only functions,firestore"
   },
   "dependencies": {
