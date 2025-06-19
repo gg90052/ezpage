@@ -2,7 +2,9 @@
   <div class="bg-white rounded-lg shadow-md p-8 mb-8">
     <h2 class="text-2xl font-bold text-gray-900 mb-6">上傳HTML檔案</h2>
 
+    <!-- 上傳區塊 - 當有檔案或正在部署時隱藏 -->
     <div
+      v-if="selectedFiles.length === 0 && !isDeploying"
       class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-indigo-500 transition-colors"
       :class="{ 'border-indigo-500 bg-indigo-50': isDragOver }"
       @dragover.prevent="handleDragOver"
@@ -15,7 +17,6 @@
         accept=".html,.htm"
         @change="handleFileSelect"
         class="hidden"
-        multiple
       />
 
       <svg
@@ -68,6 +69,7 @@
           <button
             @click="removeFile(index)"
             class="text-red-500 hover:text-red-700"
+            :disabled="isDeploying"
           >
             <svg
               class="h-5 w-5"
@@ -202,7 +204,9 @@ export default {
 
     const handleFileSelect = (event) => {
       const files = Array.from(event.target.files);
-      selectedFiles.value = [...selectedFiles.value, ...files];
+      if (files.length > 0) {
+        selectedFiles.value = [files[0]]; // 只取第一個檔案
+      }
     };
 
     const removeFile = (index) => {
@@ -232,8 +236,8 @@ export default {
       );
 
       if (htmlFiles.length > 0) {
-        selectedFiles.value = [...selectedFiles.value, ...htmlFiles];
-        emit("notification", `已添加 ${htmlFiles.length} 個HTML檔案`);
+        selectedFiles.value = [htmlFiles[0]]; // 只取第一個HTML檔案
+        emit("notification", "已添加HTML檔案");
       } else {
         emit("notification", "請只上傳HTML檔案(.html, .htm)");
       }
