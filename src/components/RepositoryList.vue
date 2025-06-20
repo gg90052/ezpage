@@ -74,8 +74,7 @@
               查看原始碼
             </a>
             <a
-              v-if="repo.homepage"
-              :href="repo.homepage"
+              :href="webURL(repo)"
               target="_blank"
               class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-sm hover:bg-indigo-200"
             >
@@ -117,6 +116,14 @@ defineProps({
 });
 
 defineEmits(["delete-repo"]);
+
+const webURL = (repo) => {
+  if (repo.homepage) {
+    return repo.homepage;
+  }
+  const [username, repoName] = repo.fullName.split("/");
+  return `https://${username}.github.io/${repoName}`;
+};
 
 const formatDate = (dateString) => {
   const date = new Date(dateString);

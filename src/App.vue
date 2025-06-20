@@ -163,19 +163,32 @@ const logout = () => {
 };
 
 // 部署到 GitHub
-const deployToGitHub = async (deployData) => {
+const deployToGitHub = async (deployData, isFileUpload = false) => {
   isDeploying.value = true;
 
+  console.log("deployData:", deployData, "isFileUpload:", isFileUpload);
+  if (isFileUpload && deployData instanceof FormData) {
+    console.log("file:", deployData.get("file"));
+  }
+
   try {
-    const response = await apiService.deploy(deployData);
+    const response = await apiService.deploy(deployData, isFileUpload);
 
     // 重新加載 repositories 以顯示新創建的 repository
     await loadRepositories();
     deployInfoShow.value = true;
-    showNotification(`網站已成功部署！網址：${response.url}`, "success");
+
+    const filesInfo = response.filesUploaded
+      ? `（${response.filesUploaded} 個檔案）`
+      : "";
+    showNotification(
+      `網站已成功部署！${filesInfo} 網址：${response.url}`,
+      "success"
+    );
   } catch (error) {
     console.error("部署失敗:", error);
-    showNotification("部署失敗，請稍後再試", "error");
+    const errorMessage = error.response?.data?.error || "部署失敗，請稍後再試";
+    showNotification(errorMessage, "error");
   } finally {
     isDeploying.value = false;
   }
@@ -187,6 +200,7 @@ const loadRepositories = async () => {
     console.log("開始載入GitHub Repositories...");
     const data = await apiService.getRepositories();
     repositories.value = data;
+    console.log("repositories:", repositories.value);
     console.log(
       "GitHub Repositories已載入:",
       repositories.value.length,

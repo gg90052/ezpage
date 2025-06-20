@@ -1,9 +1,9 @@
 import axios from "axios";
 
 // Firebase Functions URL - 雲端部署版本
-const API_BASE_URL = "https://us-central1-ezpage-127d9.cloudfunctions.net/api";
+// const API_BASE_URL = "https://us-central1-ezpage-127d9.cloudfunctions.net/api";
 // 開發環境可以使用本地 URL：
-// const API_BASE_URL = "http://localhost:5001/ezpage-127d9/us-central1/api";
+const API_BASE_URL = "http://localhost:5001/ezpage-127d9/us-central1/api";
 
 class ApiService {
   constructor() {
@@ -24,8 +24,33 @@ class ApiService {
     });
   }
 
-  async deploy(deployData) {
-    const response = await this.axios.post("/deploy", deployData);
+  async deploy(deployData, isFileUpload = false) {
+    const config = {
+      // 設定請求攔截器
+      transformRequest: [
+        function (data, headers) {
+          if (isFileUpload) {
+            // 檔案上傳：移除 Content-Type，讓瀏覽器自動設定為 multipart/form-data
+            delete headers["Content-Type"];
+            return data; // FormData 不需要序列化
+          } else {
+            // JSON 模式：確保 Content-Type 是 application/json 並正確序列化
+            headers["Content-Type"] = "application/json";
+            return JSON.stringify(data); // 手動序列化 JSON
+          }
+        },
+      ],
+    };
+
+    if (isFileUpload) {
+      // 添加 timeout 設定，避免大檔案上傳逾時
+      config.timeout = 300000; // 5分鐘逾時
+      // 增加檔案大小限制
+      config.maxContentLength = Infinity;
+      config.maxBodyLength = Infinity;
+    }
+
+    const response = await this.axios.post("/deploy", deployData, config);
     return response.data;
   }
 

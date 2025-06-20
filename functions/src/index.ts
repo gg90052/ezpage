@@ -4,6 +4,8 @@ import * as express from "express";
 import * as cors from "cors";
 import { Octokit } from "@octokit/rest";
 import axios from "axios";
+import * as multer from "multer";
+import * as AdmZip from "adm-zip";
 
 admin.initializeApp();
 
@@ -24,14 +26,32 @@ app.use(
   })
 );
 
-// 增加請求大小限制
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+// 只對非 deploy 路由使用 JSON 解析器
+app.use((req, res, next) => {
+  if (req.path === "/deploy") {
+    // 跳過 deploy 路由的自動 JSON 解析
+    next();
+  } else {
+    // 其他路由使用標準 JSON 解析器
+    express.json({ limit: "50mb" })(req, res, next);
+  }
+});
+
+// 設定 multer 用於檔案上傳
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB 限制
+  },
+});
 
 // GitHub OAuth設定 - 需要在Firebase Config中設定這些環境變數
 
 const GITHUB_CLIENT_ID = functions.config().github?.client_id;
 const GITHUB_CLIENT_SECRET = functions.config().github?.client_secret;
+
+// 創建 JSON 中間件實例（僅用於 deploy 路由）
+const jsonParser = express.json({ limit: "50mb" });
 
 // GitHub OAuth callback處理
 app.get("/auth/callback", async (req, res) => {
@@ -84,9 +104,31 @@ app.get("/auth/callback", async (req, res) => {
   }
 });
 
+// 請求處理中間件
+const requestHandler = (req: any, res: any, next: any) => {
+  const contentType = req.headers["content-type"] || "";
+
+  // 如果是 multipart/form-data，使用 multer 處理檔案上傳
+  if (contentType.includes("multipart/form-data")) {
+    upload.single("file")(req, res, next);
+  } else {
+    // 對於 JSON 請求，使用 JSON 解析器
+    jsonParser(req, res, next);
+  }
+};
+
 // 部署到GitHub Pages
-app.post("/deploy", async (req, res) => {
+// 支援三種部署模式：
+// 1. HTML 代碼部署：傳送 JSON 格式 { html: string, siteName: string, description: string }
+// 2. HTML 檔案上傳：傳送 FormData 包含 .html/.htm 檔案
+// 3. ZIP 檔案上傳：傳送 FormData 包含 .zip 檔案，會自動解壓縮並部署所有內容
+//
+// 前端使用方式：
+// - 純文字模式：axios.post('/deploy', { html, siteName, description })
+// - 檔案模式：axios.post('/deploy', formData) // formData 包含 file, siteName, description
+app.post("/deploy", requestHandler, async (req, res) => {
   try {
+    // 驗證認證
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ error: "未提供有效的認證" });
@@ -94,44 +136,115 @@ app.post("/deploy", async (req, res) => {
 
     const token = authHeader.split(" ")[1];
 
+    // 初始化 Octokit
+    const octokit = new Octokit({
+      auth: token,
+    });
+
     // 獲取用戶資訊
     const userResponse = await axios.get("https://api.github.com/user", {
       headers: {
         Authorization: `token ${token}`,
       },
     });
-
     const userData = userResponse.data;
     const userId = userData.login;
 
-    // 從請求中獲取HTML內容和部署設定
-    const { html, siteName, description = "" } = req.body;
+    let siteName: string;
+    let description: string;
+    let files: { [path: string]: string } = {};
+    let filesUploaded = 0;
 
-    if (!html || !siteName) {
-      return res.status(400).json({ error: "請提供HTML內容和網站名稱" });
+    // 判斷是檔案上傳還是 HTML 代碼部署
+    if (req.file) {
+      // 檔案上傳模式
+      siteName = req.body.siteName || "ezpage";
+      description = req.body.description || "";
+
+      const fileName = req.file.originalname.toLowerCase();
+
+      if (fileName.endsWith(".zip")) {
+        // ZIP 檔案處理
+        try {
+          const zip = new AdmZip(req.file.buffer);
+          const zipEntries = zip.getEntries();
+
+          zipEntries.forEach((entry) => {
+            if (!entry.isDirectory) {
+              const entryName = entry.entryName;
+              const content = entry.getData().toString("utf8");
+
+              // 跳過隱藏檔案和系統檔案
+              if (
+                !entryName.startsWith(".") &&
+                !entryName.includes("__MACOSX")
+              ) {
+                files[entryName] = content;
+                filesUploaded++;
+              }
+            }
+          });
+
+          if (filesUploaded === 0) {
+            throw new Error("ZIP 檔案中沒有找到有效的檔案");
+          }
+
+          // 確保有 index.html
+          if (!files["index.html"] && !files["index.htm"]) {
+            const htmlFiles = Object.keys(files).filter(
+              (name) => name.endsWith(".html") || name.endsWith(".htm")
+            );
+
+            if (htmlFiles.length > 0) {
+              // 將第一個 HTML 檔案重命名為 index.html
+              const firstHtmlFile = htmlFiles[0];
+              files["index.html"] = files[firstHtmlFile];
+              if (firstHtmlFile !== "index.html") {
+                delete files[firstHtmlFile];
+              }
+            }
+          }
+        } catch (error) {
+          return res.status(400).json({
+            error: "ZIP 檔案處理失敗",
+            details: error instanceof Error ? error.message : "未知錯誤",
+          });
+        }
+      } else if (fileName.endsWith(".html") || fileName.endsWith(".htm")) {
+        // HTML 檔案處理
+        const content = req.file.buffer.toString("utf8");
+        files["index.html"] = content;
+        filesUploaded = 1;
+      } else {
+        return res.status(400).json({
+          error: "不支援的檔案類型",
+          details: "只支援 .html、.htm 和 .zip 檔案",
+        });
+      }
+    } else {
+      // HTML 代碼模式
+      const {
+        html,
+        siteName: reqSiteName,
+        description: reqDescription,
+      } = req.body;
+
+      if (!html || !html.trim()) {
+        return res.status(400).json({ error: "請提供 HTML 代碼" });
+      }
+
+      siteName = reqSiteName || "ezpage";
+      description = reqDescription || "";
+      files["index.html"] = html;
+      filesUploaded = 1;
     }
 
-    // 檢查網站名稱格式（只允許字母、數字、連字號）
-    const validRepoName = /^[a-zA-Z0-9.-]+$/.test(siteName);
-    if (!validRepoName) {
-      return res
-        .status(400)
-        .json({ error: "網站名稱只能包含字母、數字、點和連字號" });
-    }
-
-    // 初始化 Octokit
-    const octokit = new Octokit({
-      auth: token,
-    });
-
-    const repoName = `${siteName}`;
-
-    // 檢查repository是否已存在
+    // 檢查 repository 是否已存在
     let repoExists = false;
     try {
       await octokit.repos.get({
         owner: userId,
-        repo: repoName,
+        repo: siteName,
       });
       repoExists = true;
     } catch (error: any) {
@@ -140,77 +253,98 @@ app.post("/deploy", async (req, res) => {
       }
     }
 
-    // 如果repository不存在，創建新的
+    // 建立或更新 repository
     if (!repoExists) {
       await octokit.repos.createForAuthenticatedUser({
-        name: repoName,
-        description: description || `使用 EZPage 創建的網站: ${siteName}`,
-        homepage: `https://${userId}.github.io/${repoName}`,
-        private: false,
+        name: siteName,
+        description: description || `由 EZPage 建立的網站`,
+        public: true,
+        has_issues: false,
+        has_projects: false,
+        has_wiki: false,
         auto_init: true,
       });
     }
 
-    // 獲取main分支的SHA（用於更新文件）
-    let sha;
-    try {
-      const { data: file } = await octokit.repos.getContent({
-        owner: userId,
-        repo: repoName,
-        path: "index.html",
-      });
+    // 上傳檔案到 repository
 
-      if (!Array.isArray(file) && file.sha) {
-        sha = file.sha;
-      }
-    } catch (error: any) {
-      // 文件不存在，將創建新文件
-      if (error.status !== 404) {
+    for (const [filePath, content] of Object.entries(files)) {
+      try {
+        // 檢查檔案是否已存在
+        let sha: string | undefined;
+        try {
+          const existingFile = await octokit.repos.getContent({
+            owner: userId,
+            repo: siteName,
+            path: filePath,
+          });
+
+          if (
+            !Array.isArray(existingFile.data) &&
+            existingFile.data.type === "file"
+          ) {
+            sha = existingFile.data.sha;
+          }
+        } catch (error: any) {
+          // 檔案不存在，將建立新檔案
+        }
+
+        // 上傳檔案
+        await octokit.repos.createOrUpdateFileContents({
+          owner: userId,
+          repo: siteName,
+          path: filePath,
+          message: `更新 ${filePath} via EZPage`,
+          content: Buffer.from(content, "utf8").toString("base64"),
+          sha: sha,
+        });
+      } catch (error) {
         throw error;
       }
     }
 
-    // 上傳或更新index.html文件
-    const content = Buffer.from(html).toString("base64");
-
-    await octokit.repos.createOrUpdateFileContents({
-      owner: userId,
-      repo: repoName,
-      path: "index.html",
-      message: `部署網站: ${siteName} - ${new Date().toISOString()}`,
-      content: content,
-      sha: sha, // 如果是更新文件，需要提供SHA
-    });
-
-    // 啟用GitHub Pages
+    // 啟用 GitHub Pages
     try {
       await octokit.repos.createPagesSite({
         owner: userId,
-        repo: repoName,
+        repo: siteName,
         source: {
           branch: "main",
           path: "/",
         },
       });
     } catch (error: any) {
-      // 如果Pages已經啟用，會返回409錯誤，這是正常的
-      if (error.status !== 409) {
-        console.error("啟用GitHub Pages失敗:", error);
+      // GitHub Pages 可能已經啟用，不拋出錯誤
+    }
+
+    const siteUrl = `https://${userId}.github.io/${siteName}`;
+
+    return res.json({
+      success: true,
+      message: "網站部署成功！",
+      url: siteUrl,
+      repository: `https://github.com/${userId}/${siteName}`,
+      filesUploaded: filesUploaded,
+      deployedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    // 處理不同類型的錯誤
+    if (error instanceof Error) {
+      if (error.message.includes("Bad credentials")) {
+        return res.status(401).json({
+          error: "認證失敗，請重新登入",
+          details: "GitHub token 無效或已過期",
+        });
+      }
+
+      if (error.message.includes("Repository creation failed")) {
+        return res.status(400).json({
+          error: "Repository 建立失敗",
+          details: "可能是名稱已被使用或包含無效字元",
+        });
       }
     }
 
-    // 部署URL
-    const deploymentUrl = `https://${userId}.github.io/${repoName}`;
-
-    // 返回成功結果
-    return res.json({
-      success: true,
-      url: deploymentUrl,
-      repoName: repoName,
-      message: "網站部署成功！請等待幾分鐘讓GitHub Pages生效。",
-    });
-  } catch (error) {
-    console.error("部署失敗:", error);
     return res.status(500).json({
       error: "部署失敗",
       details: error instanceof Error ? error.message : "未知錯誤",
