@@ -1,18 +1,16 @@
-import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
 import * as express from "express";
 import * as cors from "cors";
 import { Octokit } from "@octokit/rest";
 import axios from "axios";
 import * as multer from "multer";
 import * as AdmZip from "adm-zip";
+import * as dotenv from "dotenv";
 
-admin.initializeApp();
-
-// 重新啟用 Firestore 初始化
-// const db = admin.firestore();
+// 載入環境變數
+dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 3001;
 
 // CORS設定
 app.use(
@@ -21,6 +19,7 @@ app.use(
       "http://localhost:3000", // 開發環境
       "https://gg90052.github.io", // GitHub Pages
       /\.github\.io$/, // 所有 github.io 子域名
+      process.env.FRONTEND_URL || "http://localhost:3000", // 可設定的前端 URL
     ],
     credentials: true,
   })
@@ -45,10 +44,16 @@ const upload = multer({
   },
 });
 
-// GitHub OAuth設定 - 需要在Firebase Config中設定這些環境變數
+// GitHub OAuth設定 - 從環境變數讀取
+const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
+const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 
-const GITHUB_CLIENT_ID = functions.config().github?.client_id;
-const GITHUB_CLIENT_SECRET = functions.config().github?.client_secret;
+if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
+  console.error(
+    "錯誤：請設定 GITHUB_CLIENT_ID 和 GITHUB_CLIENT_SECRET 環境變數"
+  );
+  process.exit(1);
+}
 
 // 創建 JSON 中間件實例（僅用於 deploy 路由）
 const jsonParser = express.json({ limit: "50mb" });
@@ -255,15 +260,46 @@ app.post("/deploy", requestHandler, async (req, res) => {
 
     // 建立或更新 repository
     if (!repoExists) {
+      // 確保描述末尾有 EZPage 標識
+      const finalDescription = description
+        ? `${description} - Deployed by EZPage`
+        : `由 EZPage 建立的網站 - Deployed by EZPage`;
+
       await octokit.repos.createForAuthenticatedUser({
         name: siteName,
-        description: description || `由 EZPage 建立的網站`,
+        description: finalDescription,
         public: true,
         has_issues: false,
         has_projects: false,
         has_wiki: false,
         auto_init: true,
       });
+    } else {
+      // 如果 repository 已存在，更新其描述以包含 EZPage 標識
+      try {
+        const currentRepo = await octokit.repos.get({
+          owner: userId,
+          repo: siteName,
+        });
+
+        const currentDescription = currentRepo.data.description || "";
+        const finalDescription = currentDescription.includes(
+          "Deployed by EZPage"
+        )
+          ? currentDescription
+          : description
+          ? `${description} - Deployed by EZPage`
+          : `${currentDescription} - Deployed by EZPage`.replace(/^[\s-]*/, "");
+
+        await octokit.repos.update({
+          owner: userId,
+          repo: siteName,
+          description: finalDescription,
+        });
+      } catch (error: any) {
+        console.warn("更新 repository description 失敗:", error.message);
+        // 不阻止部署流程，只記錄警告
+      }
     }
 
     // 上傳檔案到 repository
@@ -318,6 +354,18 @@ app.post("/deploy", requestHandler, async (req, res) => {
     }
 
     const siteUrl = `https://${userId}.github.io/${siteName}`;
+
+    // 更新 repository 的 homepage 為 GitHub Pages URL
+    try {
+      await octokit.repos.update({
+        owner: userId,
+        repo: siteName,
+        homepage: siteUrl,
+      });
+    } catch (error: any) {
+      console.warn("更新 repository homepage 失敗:", error.message);
+      // 不阻止部署流程，只記錄警告
+    }
 
     return res.json({
       success: true,
@@ -380,8 +428,16 @@ app.get("/repositories", async (req, res) => {
 
     console.log("獲取到 repositories 數量:", repos.length);
 
+    // 只保留透過 EZPage 部署的 repositories
+    const ezpageRepos = repos.filter(
+      (repo) =>
+        repo.description && repo.description.includes("Deployed by EZPage")
+    );
+
+    console.log("EZPage 部署的 repositories 數量:", ezpageRepos.length);
+
     // 格式化 repositories 資料
-    const repositories = repos.map((repo) => ({
+    const repositories = ezpageRepos.map((repo) => ({
       id: repo.id,
       name: repo.name,
       fullName: repo.full_name,
@@ -397,7 +453,7 @@ app.get("/repositories", async (req, res) => {
       hasPages: repo.has_pages,
     }));
 
-    console.log("最終回傳資料:", repositories.length, "個 repositories");
+    console.log("最終回傳資料:", repositories.length, "個 EZPage repositories");
     return res.json(repositories);
   } catch (error) {
     console.error("獲取 GitHub repositories 失敗:", error);
@@ -531,5 +587,29 @@ app.get("/health", (req, res) => {
   return res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// 導出Firebase Function
-export const api = functions.https.onRequest(app);
+// 基本路由
+app.get("/", (req, res) => {
+  res.json({
+    message: "EZPage API Server",
+    version: "1.0.0",
+    status: "running",
+  });
+});
+
+// 啟動伺服器
+app.listen(PORT, () => {
+  console.log(`🚀 EZPage API Server 正在運行在 http://localhost:${PORT}`);
+  console.log(`📋 健康檢查: http://localhost:${PORT}/health`);
+  console.log(`🔧 環境: ${process.env.NODE_ENV || "development"}`);
+});
+
+// 優雅關閉
+process.on("SIGTERM", () => {
+  console.log("收到 SIGTERM，正在關閉伺服器...");
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  console.log("收到 SIGINT，正在關閉伺服器...");
+  process.exit(0);
+});

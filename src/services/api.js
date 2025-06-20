@@ -1,9 +1,10 @@
 import axios from "axios";
 
-// Firebase Functions URL - 雲端部署版本
-// const API_BASE_URL = "https://us-central1-ezpage-127d9.cloudfunctions.net/api";
-// 開發環境可以使用本地 URL：
-const API_BASE_URL = "http://localhost:5001/ezpage-127d9/us-central1/api";
+// API 伺服器 URL
+const API_BASE_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://your-production-domain.com" // 替換為您的生產環境域名
+    : "http://localhost:3001"; // 本地開發環境
 
 class ApiService {
   constructor() {
@@ -80,6 +81,17 @@ class ApiService {
     const scope = "repo delete_repo user admin:repo_hook";
 
     return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
+  }
+
+  // 健康檢查
+  async healthCheck() {
+    try {
+      const response = await this.axios.get("/health");
+      return response.data;
+    } catch (error) {
+      console.error("健康檢查失敗:", error);
+      throw error;
+    }
   }
 }
 
