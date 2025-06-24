@@ -13,7 +13,7 @@ export const config = {
 
   // 開發環境設定
   development: {
-    devMode: false, // 設為 true 時使用本地 API
+    devMode: true, // 設為 true 時使用本地 API
     localApiUrl: "http://localhost:5001/ezpage-127d9/us-central1/api",
   },
 };

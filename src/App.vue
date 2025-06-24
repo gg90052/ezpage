@@ -28,6 +28,7 @@
         <FileUploader
           :is-deploying="isDeploying"
           :is-paid-user="isPaidUser"
+          :repositories="repositories"
           @deploy="deployToGitHub"
           @notification="showNotification"
         />
@@ -68,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, provide } from "vue";
 import NavBar from "./components/NavBar.vue";
 import LoginPage from "./components/LoginPage.vue";
 import FileUploader from "./components/FileUploader.vue";
@@ -87,8 +88,11 @@ const notification = ref("");
 const notificationType = ref("success");
 const deletingRepo = ref(null);
 const showDeleteConfirm = ref(false);
-const isPaidUser = ref(false); // 目前設為false，之後可根據實際付費邏輯修改
+const isPaidUser = ref(true); // 目前設為false，之後可根據實際付費邏輯修改
 const deployInfoShow = ref(false);
+
+// 透過 provide 提供 user 值給子組件
+provide("user", user);
 
 // 初始化
 onMounted(() => {
@@ -197,15 +201,15 @@ const deployToGitHub = async (deployData, isFileUpload = false) => {
 // 加載 repositories
 const loadRepositories = async () => {
   try {
-    console.log("開始載入GitHub Repositories...");
+    // console.log("開始載入GitHub Repositories...");
     const data = await apiService.getRepositories();
     repositories.value = data;
-    console.log("repositories:", repositories.value);
-    console.log(
-      "GitHub Repositories已載入:",
-      repositories.value.length,
-      "筆記錄"
-    );
+    // console.log("repositories:", repositories.value);
+    // console.log(
+    //   "GitHub Repositories已載入:",
+    //   repositories.value.length,
+    //   "筆記錄"
+    // );
   } catch (error) {
     console.error("載入GitHub Repositories失敗:", error);
     if (error.response) {

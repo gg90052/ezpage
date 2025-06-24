@@ -3,7 +3,7 @@ import axios from "axios";
 // API 伺服器 URL
 const API_BASE_URL =
   process.env.NODE_ENV === "production"
-    ? "https://your-production-domain.com" // 替換為您的生產環境域名
+    ? "https://ezpage.zeabur.app" // 替換為您的生產環境域名
     : "http://localhost:3001"; // 本地開發環境
 
 class ApiService {

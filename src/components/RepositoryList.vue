@@ -7,7 +7,9 @@
         :key="repo.id"
         class="border rounded-lg p-4"
       >
-        <div class="flex items-center justify-between">
+        <div
+          class="flex flex-col md:flex-row md:items-center md:justify-between"
+        >
           <div class="flex-1">
             <div class="flex items-center mb-2">
               <h3 class="text-lg font-medium text-gray-900 mr-3">
@@ -65,25 +67,28 @@
               <span>{{ formatDate(repo.updatedAt) }}</span>
             </div>
           </div>
-          <div class="flex space-x-2">
+          <div
+            class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-4 md:mt-0 md:ml-4"
+          >
             <a
               :href="repo.url"
               target="_blank"
-              class="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-200"
+              class="bg-gray-100 text-gray-700 px-3 py-2 rounded text-sm hover:bg-gray-200 text-center"
             >
               查看原始碼
             </a>
             <a
-              v-if="repo.homepage"
-              :href="repo.homepage"
+              :href="
+                repo.homepage || `https://${user.login}.github.io/${repo.name}`
+              "
               target="_blank"
-              class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-sm hover:bg-indigo-200"
+              class="bg-indigo-100 text-indigo-700 px-3 py-2 rounded text-sm hover:bg-indigo-200 text-center"
             >
               查看網站
             </a>
             <button
               @click="$emit('delete-repo', repo)"
-              class="bg-red-100 text-red-700 px-3 py-1 rounded text-sm hover:bg-red-200 transition-colors"
+              class="bg-red-100 text-red-700 px-3 py-2 rounded text-sm hover:bg-red-200 transition-colors text-center"
               title="刪除此repository"
             >
               <svg
@@ -109,6 +114,11 @@
 </template>
 
 <script setup>
+import { inject } from "vue";
+
+// 透過 inject 注入 user 值
+const user = inject("user");
+
 defineProps({
   repositories: {
     type: Array,
