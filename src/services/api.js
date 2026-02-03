@@ -3,7 +3,7 @@ import axios from "axios";
 // API 伺服器 URL
 const API_BASE_URL =
   process.env.NODE_ENV === "production"
-    ? "https://ezpage.zeabur.app" // 替換為您的生產環境域名
+    ? "https://ezpage-api-qw5f7vxrra-de.a.run.app" // 替換為您的生產環境域名
     : "http://localhost:3001"; // 本地開發環境
 
 class ApiService {
@@ -76,7 +76,12 @@ class ApiService {
 
   // GitHub OAuth 相關方法
   getAuthUrl() {
-    const clientId = "Ov23liX2Xl95CThk8evQ"; // 需要替換為實際的client_id
+    const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
+    
+    if (!clientId) {
+      throw new Error('GitHub Client ID not configured. Please set VITE_GITHUB_CLIENT_ID environment variable.');
+    }
+    
     const redirectUri = `${API_BASE_URL}/auth/callback`;
     const scope = "repo delete_repo user admin:repo_hook";
 
